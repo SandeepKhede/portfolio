@@ -68,7 +68,7 @@ export default function Projects() {
                     transition={{ duration: 0.6 }}
                     className="text-5xl font-bold text-white mb-16 tracking-tight"
                 >
-                    Select Works
+                    Projects
                 </motion.h2>
 
                 <motion.div
