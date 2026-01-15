@@ -6,13 +6,14 @@ import manifest from "@/public/manifest.json";
 
 interface ScrollyCanvasProps {
     containerRef: React.RefObject<HTMLElement | null>;
+    onLoaded?: () => void;
 }
 
-export default function ScrollyCanvas({ containerRef }: ScrollyCanvasProps) {
+export default function ScrollyCanvas({ containerRef, onLoaded }: ScrollyCanvasProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    const imagesRef = useRef<HTMLImageElement[]>([]); // ⭐ avoid re-renders
+    const imagesRef = useRef<HTMLImageElement[]>([]);
     const [loaded, setLoaded] = useState(false);
-    const currentFrameRef = useRef(0); // ⭐ avoid state redraw
+    const currentFrameRef = useRef(0);
 
     const { scrollYProgress } = useScroll({
         target: containerRef,
@@ -28,14 +29,17 @@ export default function ScrollyCanvas({ containerRef }: ScrollyCanvasProps) {
         imagesRef.current = frames.map((frame) => {
             const img = new Image();
             img.src = `/sequence1/${frame}`;
-            img.decoding = "async"; // ⭐ better decoding
+            img.decoding = "async";
             img.onload = () => {
                 loadedCount++;
-                if (loadedCount === frames.length) setLoaded(true);
+                if (loadedCount === frames.length) {
+                    setLoaded(true);
+                    if (onLoaded) onLoaded();
+                }
             };
             return img;
         });
-    }, []);
+    }, [onLoaded]);
 
     /* ---------------- CANVAS SETUP ---------------- */
 
@@ -47,7 +51,7 @@ export default function ScrollyCanvas({ containerRef }: ScrollyCanvasProps) {
         if (!ctx) return;
 
         const resizeCanvas = () => {
-            const dpr = window.devicePixelRatio || 1; // ⭐ KEY FIX
+            const dpr = window.devicePixelRatio || 1;
             const width = window.innerWidth;
             const height = window.innerHeight;
 
@@ -57,7 +61,7 @@ export default function ScrollyCanvas({ containerRef }: ScrollyCanvasProps) {
             canvas.style.width = `${width}px`;
             canvas.style.height = `${height}px`;
 
-            ctx.setTransform(dpr, 0, 0, dpr, 0, 0); // ⭐ crisp scaling
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
             renderFrame(currentFrameRef.current);
         };
 
@@ -110,11 +114,6 @@ export default function ScrollyCanvas({ containerRef }: ScrollyCanvasProps) {
         <div className="h-[500vh] relative bg-[#121212]">
             <div className="sticky top-0 h-screen w-full overflow-hidden">
                 <canvas ref={canvasRef} className="block" />
-                {!loaded && (
-                    <div className="absolute inset-0 flex items-center justify-center text-white/20">
-                        Loading Experience...
-                    </div>
-                )}
             </div>
         </div>
     );
