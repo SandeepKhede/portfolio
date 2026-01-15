@@ -2,20 +2,27 @@
 
 import { motion, useScroll, useTransform } from "framer-motion";
 
-export default function Overlay() {
-    const { scrollYProgress } = useScroll();
+interface OverlayProps {
+    containerRef: React.RefObject<HTMLElement | null>;
+}
+
+export default function Overlay({ containerRef }: OverlayProps) {
+    const { scrollYProgress } = useScroll({
+        target: containerRef,
+        offset: ["start start", "end end"]
+    });
 
     // Section 1: 0% - 15%
     const opacity1 = useTransform(scrollYProgress, [0, 0.15], [1, 0]);
     const y1 = useTransform(scrollYProgress, [0, 0.15], [0, -50]);
 
-    // Section 2: 20% - 40% (Fade in then out)
-    const opacity2 = useTransform(scrollYProgress, [0.2, 0.3, 0.4], [0, 1, 0]);
-    const y2 = useTransform(scrollYProgress, [0.2, 0.4], [50, -50]);
+    // Section 2: 25% - 45% (Adjusted for better pacing)
+    const opacity2 = useTransform(scrollYProgress, [0.25, 0.35, 0.45], [0, 1, 0]);
+    const y2 = useTransform(scrollYProgress, [0.25, 0.45], [50, -50]);
 
-    // Section 3: 50% - 70%
-    const opacity3 = useTransform(scrollYProgress, [0.5, 0.6, 0.7], [0, 1, 0]);
-    const y3 = useTransform(scrollYProgress, [0.5, 0.7], [50, -50]);
+    // Section 3: 55% - 75%
+    const opacity3 = useTransform(scrollYProgress, [0.55, 0.65, 0.75], [0, 1, 0]);
+    const y3 = useTransform(scrollYProgress, [0.55, 0.75], [50, -50]);
 
     return (
         <div className="absolute inset-0 pointer-events-none z-10 h-full">
@@ -52,9 +59,9 @@ export default function Overlay() {
             >
                 <div className="max-w-2xl bg-black/30 backdrop-blur-md p-8 rounded-2xl border border-white/10">
                     <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">
-                        Building scalable, <br />
+                        Engineering scalable, <br />
                         high-performance <br />
-                        web interfaces.
+                        web applications.
                     </h2>
                 </div>
             </motion.div>
@@ -66,9 +73,9 @@ export default function Overlay() {
             >
                 <div className="max-w-2xl bg-black/30 backdrop-blur-md p-8 rounded-2xl border border-white/10 text-right">
                     <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">
-                        Performance, <br />
-                        accessibility, <br />
-                        and modern UX.
+                        Integrating AI <br />
+                        into real-world <br />
+                        web applications.
                     </h2>
                 </div>
             </motion.div>

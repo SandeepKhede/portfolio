@@ -1,108 +1,100 @@
 "use client";
 
-import { useEffect, useRef, useState, useMemo } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useScroll, useMotionValueEvent } from "framer-motion";
-import manifest from "@/public/manifest.json"; // We will configure alias or just import from relative
+import manifest from "@/public/manifest.json";
 
-// If alias fails, we might need relative path: "../public/manifest.json" 
-// But Next.js handles imports from public via URL usually, BUT for a json file valid at build time? 
-// No, standard import works if built. 
-// Actually, it's safer to fetch it or just hardcode if it was static.
-// I will move manifest.json to a src/lib folder or just fetch it. 
-// Simpler: I'll hardcode the fetching since it's in public.
+interface ScrollyCanvasProps {
+    containerRef: React.RefObject<HTMLElement | null>;
+}
 
-export default function ScrollyCanvas() {
+export default function ScrollyCanvas({ containerRef }: ScrollyCanvasProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    const [images, setImages] = useState<HTMLImageElement[]>([]);
+    const imagesRef = useRef<HTMLImageElement[]>([]); // ⭐ avoid re-renders
     const [loaded, setLoaded] = useState(false);
-    const { scrollYProgress } = useScroll();
-    const [currentFrame, setCurrentFrame] = useState(0);
+    const currentFrameRef = useRef(0); // ⭐ avoid state redraw
 
-    // Preload images
+    const { scrollYProgress } = useScroll({
+        target: containerRef,
+        offset: ["start start", "end end"]
+    });
+
+    /* ---------------- IMAGE PRELOAD ---------------- */
+
     useEffect(() => {
-        const loadImages = async () => {
-            // frames is the array of filenames from manifest
-            const frames = manifest as string[];
+        const frames = manifest as string[];
+        let loadedCount = 0;
 
-            const loadedParams: HTMLImageElement[] = [];
-            let loadCount = 0;
-
-            for (const frame of frames) {
-                const img = new Image();
-                img.src = `/sequence/${frame}`;
-                img.onload = () => {
-                    loadCount++;
-                    if (loadCount === frames.length) {
-                        setLoaded(true);
-                    }
-                };
-                loadedParams.push(img);
-            }
-            setImages(loadedParams);
-        };
-
-        loadImages();
+        imagesRef.current = frames.map((frame) => {
+            const img = new Image();
+            img.src = `/sequence1/${frame}`;
+            img.decoding = "async"; // ⭐ better decoding
+            img.onload = () => {
+                loadedCount++;
+                if (loadedCount === frames.length) setLoaded(true);
+            };
+            return img;
+        });
     }, []);
 
-    // Render loop
+    /* ---------------- CANVAS SETUP ---------------- */
+
     useEffect(() => {
         const canvas = canvasRef.current;
-        if (!canvas || images.length === 0) return;
+        if (!canvas || !loaded) return;
 
         const ctx = canvas.getContext("2d");
         if (!ctx) return;
 
-        // Set canvas dimensions
         const resizeCanvas = () => {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            renderFrame(currentFrame);
+            const dpr = window.devicePixelRatio || 1; // ⭐ KEY FIX
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+
+            canvas.width = width * dpr;
+            canvas.height = height * dpr;
+
+            canvas.style.width = `${width}px`;
+            canvas.style.height = `${height}px`;
+
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0); // ⭐ crisp scaling
+            renderFrame(currentFrameRef.current);
         };
 
+        resizeCanvas();
         window.addEventListener("resize", resizeCanvas);
-        resizeCanvas(); // initial
-
         return () => window.removeEventListener("resize", resizeCanvas);
-    }, [images, currentFrame]);
+    }, [loaded]);
 
-    // Update frame on scroll
+    /* ---------------- SCROLL → FRAME ---------------- */
+
     useMotionValueEvent(scrollYProgress, "change", (latest) => {
-        if (images.length === 0) return;
-
-        // Logic: latest (0 to 1) maps to index (0 to images.length - 1)
-        // However, the canvas component is sticky inside a 500vh container.
-        // scrollYProgress from useScroll() defaults to the WINDOW scroll.
-        // If the 500vh container is a subset of the page, we might need a target ref.
-        // But since this is the "Hero" and likely at the top, window scroll is fine 
-        // BUT we need to clamp it to where this section is active.
-        // Actually, creating a ref for the container is better.
-
-        // For now, assume it's the main scroll driver.
-
-        // 500vh = 5 viewports. 
-        // We want the animation to play over the first X scroll.
+        if (!loaded) return;
 
         const frameIndex = Math.min(
-            images.length - 1,
-            Math.floor(latest * images.length)
+            imagesRef.current.length - 1,
+            Math.floor(latest * imagesRef.current.length)
         );
 
-        setCurrentFrame(frameIndex);
-        renderFrame(frameIndex);
+        if (frameIndex !== currentFrameRef.current) {
+            currentFrameRef.current = frameIndex;
+            renderFrame(frameIndex);
+        }
     });
+
+    /* ---------------- RENDER FRAME ---------------- */
 
     const renderFrame = (index: number) => {
         const canvas = canvasRef.current;
-        if (!canvas || !images[index] || !loaded) return;
+        const img = imagesRef.current[index];
+        if (!canvas || !img) return;
 
         const ctx = canvas.getContext("2d");
         if (!ctx) return;
 
-        const img = images[index];
+        const w = canvas.width / (window.devicePixelRatio || 1);
+        const h = canvas.height / (window.devicePixelRatio || 1);
 
-        // Object-fit: cover logic
-        const w = canvas.width;
-        const h = canvas.height;
         const imgW = img.width;
         const imgH = img.height;
 
@@ -117,12 +109,9 @@ export default function ScrollyCanvas() {
     return (
         <div className="h-[500vh] relative bg-[#121212]">
             <div className="sticky top-0 h-screen w-full overflow-hidden">
-                <canvas
-                    ref={canvasRef}
-                    className="w-full h-full block"
-                />
+                <canvas ref={canvasRef} className="block" />
                 {!loaded && (
-                    <div className="absolute inset-0 flex items-center justify-center text-white/20 font-sans">
+                    <div className="absolute inset-0 flex items-center justify-center text-white/20">
                         Loading Experience...
                     </div>
                 )}

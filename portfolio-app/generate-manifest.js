@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const sequenceDir = path.join(__dirname, 'public', 'sequence');
+const sequenceDir = path.join(__dirname, 'public', 'sequence1');
 const output = path.join(__dirname, 'public', 'manifest.json');
 
 try {
